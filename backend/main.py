@@ -16,7 +16,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# CORS setup for frontend
+# CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -87,14 +87,12 @@ async def callback(code: str):
 # Profile Analysis
 @app.post("/analyze_profile")
 async def analyze_profile(profile: UserProfile):
-    # Store profile data in PostgreSQL
     cursor.execute(
         "INSERT INTO profiles (user_id, skills, experience, interests) VALUES (%s, %s, %s, %s)",
         (profile.user_id, json.dumps(profile.skills), json.dumps(profile.experience), json.dumps(profile.interests))
     )
     conn.commit()
     
-    # Generate profile summary using LangChain
     prompt = PromptTemplate(
         input_variables=["skills", "experience", "interests"],
         template="Summarize a professional profile with skills: {skills}, experience: {experience}, interests: {interests}."
@@ -105,9 +103,7 @@ async def analyze_profile(profile: UserProfile):
 # Content Generation
 @app.post("/generate_post")
 async def generate_post(profile: UserProfile):
-    # Mock industry trends (replace with web scraping or API in production)
     trends = ["AI in marketing", "Personal branding in 2025", "Social media analytics"]
-    
     prompt = PromptTemplate(
         input_variables=["profile_summary", "trends"],
         template="Create a LinkedIn post for a professional with this profile: {profile_summary}. Incorporate these industry trends: {trends}. Keep it engaging, professional, and under 280 characters."
@@ -115,10 +111,8 @@ async def generate_post(profile: UserProfile):
     profile_summary = f"Skills: {', '.join(profile.skills)}, Experience: {', '.join(profile.experience)}, Interests: {', '.join(profile.interests)}"
     post_content = llm(prompt.format(profile_summary=profile_summary, trends=", ".join(trends)))
     
-    # Basic engagement optimization (e.g., add hashtags)
     optimized_content = f"{post_content} #PersonalBranding #IndustryTrends"
     
-    # Store in PostgreSQL
     cursor.execute(
         "INSERT INTO posts (user_id, content, created_at) VALUES (%s, %s, %s)",
         (profile.user_id, optimized_content, datetime.now())
@@ -154,7 +148,6 @@ async def schedule_post(post: PostContent, user_id: str):
     if response.status_code != 201:
         raise HTTPException(status_code=400, detail="Failed to post to LinkedIn")
     
-    # Store post metadata
     cursor.execute(
         "UPDATE posts SET posted_at = %s WHERE content = %s",
         (post.scheduled_time, post.content)
